@@ -48,14 +48,6 @@ brainstorm
 
 Brainstorm reads from standard input and writes to standard output. There are no positional arguments; all behavior is controlled via flags.
 
-```text
-Usage of Brainstorm version (0.1.0):
-
-input | brainstorm [options] > output
-
-Accepts standard input and writes transformed output to standard output.
-```
-
 ### Core Flags
 
 - `-w string`
