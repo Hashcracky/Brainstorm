@@ -22,7 +22,7 @@ Brainstorm is a focused text transformation tool designed to help generate and n
   - Generates title-cased concatenations (e.g., `"hello world"` → `"HelloWorld"`).
 - **Length Filtering:** Keeps only outputs whose byte-length falls within a configurable range.
 - **Parallel Processing:**
-  - Uses a worker pool derived from `GOMAXPROCS` to process lines concurrently.
+  - Uses a worker pool to process lines concurrently.
 
 ### Install
 

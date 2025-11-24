@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/hashcracky/brainstorm/pkg/structs"
 )
 
-// ProcessStream reads from stdin, applies transformations sequentially,
-// and writes results to stdout.
+// ProcessStream reads from stdin, processes lines concurrently without preserving
+// order, and writes results to stdout as soon as they are available.
 //
 // Args:
 // cfg: *structs.Config - Application configuration.
@@ -33,9 +35,54 @@ func ProcessStream(cfg *structs.Config) error {
 	reader := bufio.NewReaderSize(os.Stdin, 1<<20)
 	writer := bufio.NewWriterSize(os.Stdout, 1<<20)
 
+	var writeMu sync.Mutex
+
 	defer func() {
+		writeMu.Lock()
 		_ = writer.Flush()
+		writeMu.Unlock()
 	}()
+
+	type lineTask struct {
+		Data []byte
+	}
+
+	taskCh := make(chan lineTask, 1024)
+
+	workerCount := runtime.NumCPU()
+	var wg sync.WaitGroup
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for task := range taskCh {
+				lineCopy := make([]byte, len(task.Data))
+				copy(lineCopy, task.Data)
+
+				processed := TransformLine(cfg, lineCopy)
+
+				if len(processed) == 0 {
+					continue
+				}
+
+				writeMu.Lock()
+
+				_, werr := writer.Write(processed)
+				if werr == nil {
+					_, werr = writer.Write([]byte{'\n'})
+				}
+
+				writeMu.Unlock()
+
+				if werr != nil {
+					return
+				}
+			}
+		}()
+	}
 
 	for {
 		rawLine, readErr := reader.ReadBytes('\n')
@@ -51,19 +98,8 @@ func ProcessStream(cfg *structs.Config) error {
 				raw = rawLine
 			}
 
-			lineCopy := make([]byte, len(raw))
-			copy(lineCopy, raw)
-
-			processed := TransformLine(cfg, lineCopy)
-
-			if len(processed) > 0 {
-				if _, werr := writer.Write(processed); werr != nil {
-					return fmt.Errorf("failed to write output: %w", werr)
-				}
-
-				if _, werr := writer.Write([]byte{'\n'}); werr != nil {
-					return fmt.Errorf("failed to write newline: %w", werr)
-				}
+			taskCh <- lineTask{
+				Data: raw,
 			}
 		}
 
@@ -72,9 +108,15 @@ func ProcessStream(cfg *structs.Config) error {
 				break
 			}
 
+			close(taskCh)
+			wg.Wait()
+
 			return fmt.Errorf("error reading from stdin: %w", readErr)
 		}
 	}
+
+	close(taskCh)
+	wg.Wait()
 
 	return nil
 }
