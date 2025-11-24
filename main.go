@@ -13,7 +13,7 @@ import (
 )
 
 // version is the current version of the brainstorm application.
-var version = "0.1.0"
+var version = "0.1.2"
 
 // parseRangeFlag parses a range in the form "start-end" and returns
 // the corresponding integer bounds.
