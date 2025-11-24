@@ -31,6 +31,8 @@ func TransformLine(cfg *structs.Config, line []byte) []byte {
 	processedChunk := generateNGramSliceBytes(line, cfg.NGramMin, cfg.NGramMax)
 	processedChunk = []byte(strings.Join(prepareStringForTransformations(processedChunk), "\n"))
 
+	processedChunk = []byte(strings.Join(applyPostFilters(processedChunk), "\n"))
+
 	return enforceLengthRange(processedChunk, cfg.OutMinLength, cfg.OutMaxLength)
 }
 
@@ -134,4 +136,111 @@ func prepareStringForTransformations(data []byte) []string {
 	}
 
 	return results
+}
+
+// applyPostFilters applies post-processing filters on the transformed output
+// lines, including removing unbalanced bracket or quote variants and adding
+// apostrophe-stripped variants.
+//
+// Args:
+// data ([]byte): The byte slice containing transformed lines.
+//
+// Returns:
+// []string: A slice of filtered and augmented lines.
+func applyPostFilters(data []byte) []string {
+	input := string(data)
+	scanner := bufio.NewScanner(strings.NewReader(input))
+
+	var filtered []string
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "" {
+			continue
+		}
+
+		if hasUnbalancedDelimiters(line) {
+			continue
+		}
+
+		filtered = append(filtered, line)
+
+		apostropheFreeVariants := generateApostropheFreeVariants(line)
+		filtered = append(filtered, apostropheFreeVariants...)
+	}
+
+	return filtered
+}
+
+// hasUnbalancedDelimiters checks for tokens that contain opening delimiters
+// such as quotes or brackets that are not balanced by a corresponding closing
+// delimiter within the same token.
+//
+// Args:
+// s (string): The string to inspect.
+//
+// Returns:
+// bool: True if the string contains an unbalanced opening delimiter.
+func hasUnbalancedDelimiters(s string) bool {
+	opening := []rune{'(', '[', '{', '<', '"', '“', '‘', '\''}
+	closing := []rune{')', ']', '}', '>', '"', '”', '’', '\''}
+
+	var foundOpening bool
+	var foundClosing bool
+
+	for _, r := range s {
+		for _, o := range opening {
+			if r == o {
+				foundOpening = true
+				break
+			}
+		}
+
+		for _, c := range closing {
+			if r == c {
+				foundClosing = true
+				break
+			}
+		}
+	}
+
+	if foundOpening && !foundClosing {
+		return true
+	}
+
+	return false
+}
+
+// generateApostropheFreeVariants returns variants of the input string where
+// apostrophes are removed. The original string is not included in the
+// returned slice.
+//
+// Args:
+// s (string): The string to generate variants from.
+//
+// Returns:
+// []string: A slice of apostrophe-free variants, or an empty slice if no
+// apostrophes are present.
+func generateApostropheFreeVariants(s string) []string {
+	if !strings.ContainsAny(s, "'’") {
+		return nil
+	}
+
+	variant := strings.Map(
+		func(r rune) rune {
+			if r == '\'' || r == '’' {
+				return -1
+			}
+
+			return r
+		},
+		s,
+	)
+
+	if variant == "" || variant == s {
+		return nil
+	}
+
+	return []string{variant}
 }
