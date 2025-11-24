@@ -115,7 +115,6 @@ func prepareStringForTransformations(data []byte) []string {
 		clean = strings.ReplaceAll(clean, "\r", "")
 		clean = strings.ReplaceAll(clean, "\f", "")
 		clean = strings.ReplaceAll(clean, "\v", "")
-		clean = strings.ToLower(clean)
 
 		if strings.TrimSpace(clean) == "" {
 			continue
