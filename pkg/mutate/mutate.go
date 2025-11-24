@@ -1,3 +1,4 @@
+// Package mutate contains logic for parsing strings
 package mutate
 
 import (

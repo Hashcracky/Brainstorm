@@ -1,3 +1,4 @@
+// Package structs contains the model used by the application
 package structs
 
 // Config holds all configuration options for the brainstorm application.
