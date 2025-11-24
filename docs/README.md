@@ -18,9 +18,7 @@ Brainstorm is a focused text transformation tool designed to help generate and n
   - Filters out lines that are unlikely to contain meaningful words.
   - Cleans common control and whitespace characters.
 - **Case Transformations:**
-  - Converts text to lowercase.
   - Generates title-cased concatenations (e.g., `"hello world"` → `"HelloWorld"`).
-- **Length Filtering:** Keeps only outputs whose byte-length falls within a configurable range.
 - **Parallel Processing:**
   - Uses a worker pool to process lines concurrently.
 
