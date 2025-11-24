@@ -186,8 +186,12 @@ func isAllDigitsOrSpecialChars(s string) bool {
 // Returns:
 // bool: True if the string likely contains words, false otherwise.
 func likelyContainsWords(s string) bool {
-	if len(s) < 5 {
+	if len(s) < 2 {
 		return false
+	}
+
+	if len(s) < 5 {
+		return looksLikeWordPattern(s)
 	}
 
 	if !looksLikeWordPattern(s) {
