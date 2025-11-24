@@ -2,47 +2,18 @@ package mutate
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
-	"runtime"
 	"strings"
-	"sync"
 	"unicode"
 
 	"github.com/hashcracky/brainstorm/pkg/structs"
 )
 
-// indexedLine represents a single input line tagged with its sequence index.
-//
-// Args:
-// index: int - Sequential index of the line in the overall input.
-// data: []byte - Raw line bytes without trailing newline.
-//
-// Returns:
-// indexedLine - Indexed representation of a line.
-type indexedLine struct {
-	index int
-	data  []byte
-}
-
-// indexedResult represents a transformed output line tagged with its sequence index.
-//
-// Args:
-// index: int - Sequential index of the line in the overall input.
-// data: []byte - Transformed line bytes. Nil or empty means no output for that line.
-//
-// Returns:
-// indexedResult - Indexed representation of a transformation result.
-type indexedResult struct {
-	index int
-	data  []byte
-}
-
-// ProcessStream reads from stdin, applies transformations using a worker pool,
-// and writes results to stdout while preserving input order.
-//
-// The worker count is derived automatically from GOMAXPROCS and cannot be
-// customized via command-line flags.
+// ProcessStream reads from stdin, applies transformations sequentially,
+// and writes results to stdout.
 //
 // Args:
 // cfg: *structs.Config - Application configuration.
@@ -59,45 +30,12 @@ func ProcessStream(cfg *structs.Config) error {
 		return fmt.Errorf("no stdin detected; supply input via a pipe or redirection")
 	}
 
-	workerCount := runtime.GOMAXPROCS(0)
-	if workerCount < 1 {
-		workerCount = 1
-	}
-
 	reader := bufio.NewReaderSize(os.Stdin, 1<<20)
 	writer := bufio.NewWriterSize(os.Stdout, 1<<20)
 
 	defer func() {
 		_ = writer.Flush()
 	}()
-
-	inputCh := make(chan indexedLine, workerCount*2)
-	resultCh := make(chan indexedResult, workerCount*2)
-
-	var wg sync.WaitGroup
-
-	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			for line := range inputCh {
-				processed := TransformLine(cfg, line.data)
-				resultCh <- indexedResult{
-					index: line.index,
-					data:  processed,
-				}
-			}
-		}()
-	}
-
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
-
-	readIndex := 0
 
 	for {
 		rawLine, readErr := reader.ReadBytes('\n')
@@ -116,53 +54,10 @@ func ProcessStream(cfg *structs.Config) error {
 			lineCopy := make([]byte, len(raw))
 			copy(lineCopy, raw)
 
-			inputCh <- indexedLine{
-				index: readIndex,
-				data:  lineCopy,
-			}
+			processed := TransformLine(cfg, lineCopy)
 
-			readIndex++
-
-			if readErr != nil {
-				if readErr.Error() == "EOF" {
-					break
-				}
-
-				close(inputCh)
-
-				return fmt.Errorf("error reading from stdin: %w", readErr)
-			}
-		} else {
-			if readErr != nil {
-				if readErr.Error() == "EOF" {
-					break
-				}
-
-				close(inputCh)
-
-				return fmt.Errorf("error reading from stdin: %w", readErr)
-			}
-		}
-	}
-
-	close(inputCh)
-
-	nextIndexToWrite := 0
-	pending := make(map[int]indexedResult)
-
-	for res := range resultCh {
-		pending[res.index] = res
-
-		for {
-			nextRes, exists := pending[nextIndexToWrite]
-			if !exists {
-				break
-			}
-
-			delete(pending, nextIndexToWrite)
-
-			if len(nextRes.data) > 0 {
-				if _, werr := writer.Write(nextRes.data); werr != nil {
+			if len(processed) > 0 {
+				if _, werr := writer.Write(processed); werr != nil {
 					return fmt.Errorf("failed to write output: %w", werr)
 				}
 
@@ -170,8 +65,14 @@ func ProcessStream(cfg *structs.Config) error {
 					return fmt.Errorf("failed to write newline: %w", werr)
 				}
 			}
+		}
 
-			nextIndexToWrite++
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+
+			return fmt.Errorf("error reading from stdin: %w", readErr)
 		}
 	}
 
