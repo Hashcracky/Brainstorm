@@ -139,8 +139,8 @@ func prepareStringForTransformations(data []byte) []string {
 }
 
 // applyPostFilters applies post-processing filters on the transformed output
-// lines, including removing unbalanced bracket or quote variants and adding
-// apostrophe-stripped variants.
+// lines, including removing unbalanced leading-quote or leading-bracket
+// variants and adding apostrophe-stripped variants.
 //
 // Args:
 // data ([]byte): The byte slice containing transformed lines.
@@ -160,7 +160,7 @@ func applyPostFilters(data []byte) []string {
 			continue
 		}
 
-		if hasUnbalancedDelimiters(line) {
+		if hasUnbalancedLeadingDelimiter(line) {
 			continue
 		}
 
@@ -173,43 +173,48 @@ func applyPostFilters(data []byte) []string {
 	return filtered
 }
 
-// hasUnbalancedDelimiters checks for tokens that contain opening delimiters
-// such as quotes or brackets that are not balanced by a corresponding closing
-// delimiter within the same token.
+// hasUnbalancedLeadingDelimiter checks whether a string starts with an opening
+// quote or bracket and lacks the corresponding closing quote or bracket later
+// in the token.
 //
 // Args:
 // s (string): The string to inspect.
 //
 // Returns:
-// bool: True if the string contains an unbalanced opening delimiter.
-func hasUnbalancedDelimiters(s string) bool {
-	opening := []rune{'(', '[', '{', '<', '"', '“', '‘', '\''}
-	closing := []rune{')', ']', '}', '>', '"', '”', '’', '\''}
+// bool: True if the string has an unbalanced leading delimiter.
+func hasUnbalancedLeadingDelimiter(s string) bool {
+	if s == "" {
+		return false
+	}
 
-	var foundOpening bool
-	var foundClosing bool
+	runes := []rune(s)
 
-	for _, r := range s {
-		for _, o := range opening {
-			if r == o {
-				foundOpening = true
-				break
-			}
-		}
+	openToClose := map[rune][]rune{
+		'(': {')'},
+		'[': {']'},
+		'{': {'}'},
+		'<': {'>'},
+		'"': {'"', '”'},
+		'“': {'”', '"'},
+		'‘': {'’', '\''},
+	}
 
-		for _, c := range closing {
+	first := runes[0]
+
+	allowedClosers, isOpening := openToClose[first]
+	if !isOpening {
+		return false
+	}
+
+	for _, r := range runes[1:] {
+		for _, c := range allowedClosers {
 			if r == c {
-				foundClosing = true
-				break
+				return false
 			}
 		}
 	}
 
-	if foundOpening && !foundClosing {
-		return true
-	}
-
-	return false
+	return true
 }
 
 // generateApostropheFreeVariants returns variants of the input string where
