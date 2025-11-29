@@ -122,14 +122,17 @@ func ProcessStream(cfg *structs.Config) error {
 }
 
 // filterLines checks each line and skips those that consist only of digits or
-// special characters and those that are unlikely to contain words.
+// special characters and those that are unlikely to contain words. In unicode
+// mode (cfg.IncludeNonLatin), lines containing any non-Latin letters are accepted
+// without Latin vowel heuristics.
 //
 // Args:
+// cfg (*structs.Config): Configuration.
 // data ([]byte): The byte slice containing the data to be processed.
 //
 // Returns:
 // []byte: The processed byte slice with filtered lines.
-func filterLines(data []byte) []byte {
+func filterLines(cfg *structs.Config, data []byte) []byte {
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	var result strings.Builder
 
@@ -144,6 +147,18 @@ func filterLines(data []byte) []byte {
 			continue
 		}
 
+		if cfg.IncludeNonLatin {
+			if containsNonLatinLetter(line) {
+				result.WriteString(line + "\n")
+				continue
+			}
+			if !likelyContainsWords(line) {
+				continue
+			}
+			result.WriteString(line + "\n")
+			continue
+		}
+
 		if !likelyContainsWords(line) {
 			continue
 		}
@@ -152,6 +167,23 @@ func filterLines(data []byte) []byte {
 	}
 
 	return []byte(result.String())
+}
+
+// containsNonLatinLetter returns true if the string contains at least one
+// Unicode letter that is not part of the Latin script.
+//
+// Args:
+// s (string): Input string.
+//
+// Returns:
+// bool: True if a non-Latin letter is present.
+func containsNonLatinLetter(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) && !unicode.Is(unicode.Latin, r) {
+			return true
+		}
+	}
+	return false
 }
 
 // isAllDigitsOrSpecialChars checks if a string contains only digits or special
@@ -186,8 +218,12 @@ func isAllDigitsOrSpecialChars(s string) bool {
 // Returns:
 // bool: True if the string likely contains words, false otherwise.
 func likelyContainsWords(s string) bool {
-	if len(s) < 5 {
+	if len(s) < 2 {
 		return false
+	}
+
+	if len(s) < 5 {
+		return looksLikeWordPattern(s)
 	}
 
 	if !looksLikeWordPattern(s) {

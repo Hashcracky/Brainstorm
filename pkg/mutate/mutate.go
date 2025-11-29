@@ -22,7 +22,7 @@ import (
 func TransformLine(cfg *structs.Config, line []byte) []byte {
 	line = removeTrailingNonLettersDigits(line)
 	line = removeLeadingNonLettersDigits(line)
-	line = filterLines(line)
+	line = filterLines(cfg, line)
 
 	if len(line) == 0 {
 		return nil
@@ -30,6 +30,8 @@ func TransformLine(cfg *structs.Config, line []byte) []byte {
 
 	processedChunk := generateNGramSliceBytes(line, cfg.NGramMin, cfg.NGramMax)
 	processedChunk = []byte(strings.Join(prepareStringForTransformations(processedChunk), "\n"))
+
+	processedChunk = []byte(strings.Join(applyPostFilters(processedChunk), "\n"))
 
 	return enforceLengthRange(processedChunk, cfg.OutMinLength, cfg.OutMaxLength)
 }
@@ -113,7 +115,6 @@ func prepareStringForTransformations(data []byte) []string {
 		clean = strings.ReplaceAll(clean, "\r", "")
 		clean = strings.ReplaceAll(clean, "\f", "")
 		clean = strings.ReplaceAll(clean, "\v", "")
-		clean = strings.ToLower(clean)
 
 		if strings.TrimSpace(clean) == "" {
 			continue
@@ -134,4 +135,116 @@ func prepareStringForTransformations(data []byte) []string {
 	}
 
 	return results
+}
+
+// applyPostFilters applies post-processing filters on the transformed output
+// lines, including removing unbalanced leading-quote or leading-bracket
+// variants and adding apostrophe-stripped variants.
+//
+// Args:
+// data ([]byte): The byte slice containing transformed lines.
+//
+// Returns:
+// []string: A slice of filtered and augmented lines.
+func applyPostFilters(data []byte) []string {
+	input := string(data)
+	scanner := bufio.NewScanner(strings.NewReader(input))
+
+	var filtered []string
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "" {
+			continue
+		}
+
+		if hasUnbalancedLeadingDelimiter(line) {
+			continue
+		}
+
+		filtered = append(filtered, line)
+
+		apostropheFreeVariants := generateApostropheFreeVariants(line)
+		filtered = append(filtered, apostropheFreeVariants...)
+	}
+
+	return filtered
+}
+
+// hasUnbalancedLeadingDelimiter checks whether a string starts with an opening
+// quote or bracket and lacks the corresponding closing quote or bracket later
+// in the token.
+//
+// Args:
+// s (string): The string to inspect.
+//
+// Returns:
+// bool: True if the string has an unbalanced leading delimiter.
+func hasUnbalancedLeadingDelimiter(s string) bool {
+	if s == "" {
+		return false
+	}
+
+	runes := []rune(s)
+
+	openToClose := map[rune][]rune{
+		'(': {')'},
+		'[': {']'},
+		'{': {'}'},
+		'<': {'>'},
+		'"': {'"', '”'},
+		'“': {'”', '"'},
+		'‘': {'’', '\''},
+	}
+
+	first := runes[0]
+
+	allowedClosers, isOpening := openToClose[first]
+	if !isOpening {
+		return false
+	}
+
+	for _, r := range runes[1:] {
+		for _, c := range allowedClosers {
+			if r == c {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// generateApostropheFreeVariants returns variants of the input string where
+// apostrophes are removed. The original string is not included in the
+// returned slice.
+//
+// Args:
+// s (string): The string to generate variants from.
+//
+// Returns:
+// []string: A slice of apostrophe-free variants, or an empty slice if no
+// apostrophes are present.
+func generateApostropheFreeVariants(s string) []string {
+	if !strings.ContainsAny(s, "'’") {
+		return nil
+	}
+
+	variant := strings.Map(
+		func(r rune) rune {
+			if r == '\'' || r == '’' {
+				return -1
+			}
+
+			return r
+		},
+		s,
+	)
+
+	if variant == "" || variant == s {
+		return nil
+	}
+
+	return []string{variant}
 }

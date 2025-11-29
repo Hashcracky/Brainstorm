@@ -18,9 +18,7 @@ Brainstorm is a focused text transformation tool designed to help generate and n
   - Filters out lines that are unlikely to contain meaningful words.
   - Cleans common control and whitespace characters.
 - **Case Transformations:**
-  - Converts text to lowercase.
   - Generates title-cased concatenations (e.g., `"hello world"` → `"HelloWorld"`).
-- **Length Filtering:** Keeps only outputs whose byte-length falls within a configurable range.
 - **Parallel Processing:**
   - Uses a worker pool to process lines concurrently.
 
@@ -61,4 +59,22 @@ Example:
 
 ```bash
 cat source.txt | brainstorm -w 1-4 -l 6-20 > candidates.txt
+```
+
+### Full Flags
+
+```bash
+Usage of Brainstorm version (0.1.3):
+
+input | brainstorm [options] > output
+
+Accepts standard input and writes transformed output to standard output.
+
+Options:
+  -l string
+        Final output length range in the form min-max (for example, 4-32). (default "4-32")
+  -unicode
+        Include non-Latin multi-byte letter sequences by relaxing Latin vowel heuristics.
+  -w string
+        N-gram word length range in the form start-end (for example, 1-5). (default "1-5")
 ```
