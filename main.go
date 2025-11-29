@@ -64,6 +64,7 @@ func parseRangeFlag(value string, defaultStart int, defaultEnd int) (int, int, e
 //
 //	-w: string - N-gram word length range, in the form start-end (for example, 1-5).
 //	-l: string - Final output length range, in the form min-max (for example, 4-32).
+//	-unicode: bool - Relax Latin-centric heuristics to include non-Latin multi-byte letter sequences.
 //
 // Returns:
 // *structs.Config - Pointer to the populated configuration struct.
@@ -78,6 +79,12 @@ func parseFlags() *structs.Config {
 		"l",
 		"4-32",
 		"Final output length range in the form min-max (for example, 4-32).",
+	)
+
+	includeNonLatin := flag.Bool(
+		"unicode",
+		false,
+		"Include non-Latin multi-byte letter sequences by relaxing Latin vowel heuristics.",
 	)
 
 	flag.Usage = func() {
@@ -103,10 +110,11 @@ func parseFlags() *structs.Config {
 	}
 
 	cfg := &structs.Config{
-		NGramMin:     nStart,
-		NGramMax:     nEnd,
-		OutMinLength: outStart,
-		OutMaxLength: outEnd,
+		NGramMin:        nStart,
+		NGramMax:        nEnd,
+		OutMinLength:    outStart,
+		OutMaxLength:    outEnd,
+		IncludeNonLatin: *includeNonLatin,
 	}
 
 	return cfg

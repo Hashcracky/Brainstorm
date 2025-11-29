@@ -22,7 +22,7 @@ import (
 func TransformLine(cfg *structs.Config, line []byte) []byte {
 	line = removeTrailingNonLettersDigits(line)
 	line = removeLeadingNonLettersDigits(line)
-	line = filterLines(line)
+	line = filterLines(cfg, line)
 
 	if len(line) == 0 {
 		return nil

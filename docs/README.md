@@ -60,3 +60,21 @@ Example:
 ```bash
 cat source.txt | brainstorm -w 1-4 -l 6-20 > candidates.txt
 ```
+
+### Full Flags
+
+```bash
+Usage of Brainstorm version (0.1.3):
+
+input | brainstorm [options] > output
+
+Accepts standard input and writes transformed output to standard output.
+
+Options:
+  -l string
+        Final output length range in the form min-max (for example, 4-32). (default "4-32")
+  -unicode
+        Include non-Latin multi-byte letter sequences by relaxing Latin vowel heuristics.
+  -w string
+        N-gram word length range in the form start-end (for example, 1-5). (default "1-5")
+```

@@ -8,12 +8,14 @@ package structs
 // nGramMax: int - Maximum n-gram word length.
 // outMinLength: int - Minimum output string length.
 // outMaxLength: int - Maximum output string length.
+// includeNonLatin: bool - When true, relax Latin vowel heuristics to allow multi-byte non-Latin letter sequences.
 //
 // Returns:
 // Config - Configuration object for the application.
 type Config struct {
-	NGramMin     int
-	NGramMax     int
-	OutMinLength int
-	OutMaxLength int
+	NGramMin        int
+	NGramMax        int
+	OutMinLength    int
+	OutMaxLength    int
+	IncludeNonLatin bool
 }
