@@ -163,6 +163,17 @@ func applyPostFilters(data []byte) []string {
 			continue
 		}
 
+		if hasUnbalancedDelimitersAnywhere(line) {
+			continue
+		}
+
+		// If middle-quote noise is present, emit apostrophe-free variants so there is still output.
+		if containsMiddleQuoteNoise(line) {
+			apostropheFreeVariants := generateApostropheFreeVariants(line)
+			filtered = append(filtered, apostropheFreeVariants...)
+			continue
+		}
+
 		filtered = append(filtered, line)
 
 		apostropheFreeVariants := generateApostropheFreeVariants(line)

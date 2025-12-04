@@ -64,7 +64,7 @@ cat source.txt | brainstorm -w 1-4 -l 6-20 > candidates.txt
 ### Full Flags
 
 ```bash
-Usage of Brainstorm version (0.1.3):
+Usage of Brainstorm version (0.1.4):
 
 input | brainstorm [options] > output
 

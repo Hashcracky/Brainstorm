@@ -656,3 +656,73 @@ func hasSuspiciousAlphaNumericRuns(s string) bool {
 
 	return false
 }
+
+// hasUnbalancedDelimitersAnywhere reports whether parentheses/brackets/braces
+// are unbalanced or misordered anywhere in the string.
+//
+// Args:
+// s: string - Input token.
+//
+// Returns:
+// bool - True if any (), [], {}, or <> are unbalanced or misordered.
+func hasUnbalancedDelimitersAnywhere(s string) bool {
+	type pair struct{ open, close rune }
+	pairs := []pair{
+		{'(', ')'},
+		{'[', ']'},
+		{'{', '}'},
+		{'<', '>'},
+	}
+
+	for _, p := range pairs {
+		var depth int
+
+		for _, r := range s {
+			if r == p.open {
+				depth++
+			} else if r == p.close {
+				if depth == 0 {
+					return true
+				}
+				depth--
+			}
+		}
+
+		if depth != 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// containsMiddleQuoteNoise reports whether the string contains quote or backtick
+// characters in the middle of the token, which commonly indicate parsing artifacts.
+//
+// Args:
+// s: string - Input token.
+//
+// Returns:
+// bool - True if '"', '\” or '`' appears at a non-edge position, or if repeated
+// sequences like ” or “ occur inside the token.
+func containsMiddleQuoteNoise(s string) bool {
+	if len(s) < 3 {
+		return false
+	}
+
+	runes := []rune(s)
+	n := len(runes)
+
+	for i, r := range runes {
+		if r == '"' || r == '\'' || r == '`' {
+			if i > 0 && i < n-1 {
+				return true
+			}
+			if i+1 < n && (runes[i+1] == r) && i+1 < n-1 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
