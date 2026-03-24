@@ -40,6 +40,26 @@ mv ./main ~/go/bin/brainstorm
 brainstorm
 ```
 
+### Docker
+
+Build the image:
+
+```bash
+docker build -t brainstorm .
+```
+
+Run Brainstorm with stdin/stdout:
+
+```bash
+cat source.txt | docker run --rm -i brainstorm -w 1-4 -l 6-20 > candidates.txt
+```
+
+Run Brainstorm with a bind mount for working files:
+
+```bash
+docker run --rm -i -v "$(pwd):/data" brainstorm -w 1-4 -l 6-20 < source.txt > candidates.txt
+```
+
 ---
 
 ## Basic Usage
@@ -64,7 +84,7 @@ cat source.txt | brainstorm -w 1-4 -l 6-20 > candidates.txt
 ### Full Flags
 
 ```bash
-Usage of Brainstorm version (0.1.4):
+Usage of Brainstorm version (1.0.0):
 
 input | brainstorm [options] > output
 
